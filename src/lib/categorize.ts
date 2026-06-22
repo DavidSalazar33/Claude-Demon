@@ -45,7 +45,10 @@ export const CATEGORY_COLORS: Record<Category, string> = {
 // First matching rule wins, so order matters (most specific first).
 const RULES: Array<{ category: Category; keywords: string[] }> = [
   { category: "Income", keywords: ["payroll", "salary", "direct dep", "deposit", "interest paid", "refund"] },
-  { category: "Rent & Mortgage", keywords: ["rent", "mortgage", "landlord", "property mgmt"] },
+  {
+    category: "Rent & Mortgage",
+    keywords: ["rent", "mortgage", "landlord", "property mgmt", "apartments", "apartment", "apt ", "leasing", "residences", "realty", "properties", "hoa"],
+  },
   {
     category: "Subscriptions",
     keywords: ["netflix", "spotify", "hulu", "disney+", "youtube premium", "icloud", "google one", "dropbox", "notion", "github", "openai", "anthropic", "audible", "nytimes", "patreon", "membership"],

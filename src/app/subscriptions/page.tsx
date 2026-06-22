@@ -28,7 +28,11 @@ export default async function SubscriptionsPage() {
   });
 
   const subscriptions = series.filter((s) => s.isSubscription);
-  const otherRecurring = series.filter((s) => !s.isSubscription && s.averageAmount < 0);
+  // Recurring outflows that aren't subscriptions (rent, utilities), excluding
+  // internal money movement which is recurring but not a "bill".
+  const otherRecurring = series.filter(
+    (s) => !s.isSubscription && s.averageAmount < 0 && s.category !== "Transfers"
+  );
 
   const monthlySubCost = subscriptions.reduce(
     (sum, s) => sum + Math.abs(s.averageAmount) * (MONTHLY_FACTOR[s.cadence] ?? 1),

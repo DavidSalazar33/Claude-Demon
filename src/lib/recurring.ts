@@ -92,27 +92,45 @@ export function detectRecurring(txns: TxnLike[]): DetectedSeries[] {
 
     const cadence = classifyCadence(medianGap);
     if (cadence === "irregular") continue;
+    const cadenceDays = CADENCE_DAYS[cadence];
 
-    // Require reasonably consistent amounts (low coefficient of variation),
-    // which separates a real subscription from coincidental repeat merchants.
+    // Gate 1 — spacing regularity. A real recurring charge arrives on a steady
+    // rhythm; a merchant you happen to buy from a lot (Amazon, coffee) has
+    // erratic gaps. Reject when the gaps themselves vary too much.
+    const gapMean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    const gapVar = gaps.reduce((a, b) => a + (b - gapMean) ** 2, 0) / gaps.length;
+    const gapCV = gapMean !== 0 ? Math.sqrt(gapVar) / gapMean : 1;
+    if (gapCV > 0.35) continue;
+
+    // Gate 2 — most gaps must actually land on the inferred cadence (not just
+    // the median). Catches bursts of activity that fake a periodic median.
+    const onCadence = gaps.filter((g) => Math.abs(g - cadenceDays) <= cadenceDays * 0.35).length;
+    if (onCadence / gaps.length < 0.6) continue;
+
+    // Gate 3 — amount consistency. Bills (utilities) drift a little; pure
+    // subscriptions barely move. Anything wilder isn't a recurring charge.
     const amounts = sorted.map((t) => t.amount);
     const mean = amounts.reduce((a, b) => a + b, 0) / amounts.length;
     const variance =
       amounts.reduce((a, b) => a + (b - mean) ** 2, 0) / amounts.length;
     const cv = mean !== 0 ? Math.sqrt(variance) / Math.abs(mean) : 1;
-    if (cv > 0.35) continue;
+    if (cv > 0.4) continue;
 
     const first = new Date(sorted[0].date);
     const last = new Date(sorted[sorted.length - 1].date);
     const category = sorted[sorted.length - 1].category;
     const isOutflow = mean < 0;
 
+    // A subscription is a stable-amount discretionary outflow. Bills
+    // (rent/utilities) and income/transfers are recurring but not subscriptions.
+    const STABLE_AMOUNT = 0.15;
     const isSubscription =
       isOutflow &&
       !NON_SUBSCRIPTION.has(category) &&
       (SUBSCRIPTION_CATEGORIES.has(category) ||
-        (cadence === "monthly" && Math.abs(mean) < 100) ||
-        cadence === "yearly");
+        ((cadence === "monthly" || cadence === "yearly") &&
+          Math.abs(mean) < 100 &&
+          cv <= STABLE_AMOUNT));
 
     series.push({
       merchant: sorted[sorted.length - 1].merchant,
