@@ -50,14 +50,43 @@ follow the comments in `docker-compose.yml` and `prisma/schema.prisma`.
 
 All account data flows through one interface — `FinancialProvider`
 (`src/lib/providers/types.ts`). The app, sync, categorization, and analytics
-never touch a specific bank API. Two implementations exist:
+never touch a specific bank API. Three implementations exist:
 
-- `MockProvider` — realistic generated data (default).
-- `PlaidProvider` — stub for [Plaid](https://dashboard.plaid.com) aggregation.
+- `MockProvider` — realistic generated data (default, no credentials).
+- `SimpleFinProvider` — real accounts via [SimpleFIN](https://www.simplefin.org)
+  (**recommended for personal use**, ~$15/yr, read-only).
+- `PlaidProvider` — stub for [Plaid](https://dashboard.plaid.com) (business-oriented).
 
-To go live: implement `PlaidProvider.fetchSnapshot()` (steps are in
-`src/lib/providers/plaidProvider.ts`), set `FINANCIAL_PROVIDER=plaid` plus your
-Plaid credentials, and re-sync. Nothing else changes.
+### SimpleFIN (recommended)
+
+```bash
+# 1. Sign up at https://bridge.simplefin.org and create a setup token.
+# 2. Exchange it for an access URL:
+npm run simplefin:claim <setup-token>
+# 3. Paste the printed SIMPLEFIN_ACCESS_URL + FINANCIAL_PROVIDER=simplefin into .env
+npm run db:reset   # re-sync from your real accounts
+```
+
+SimpleFIN's amount convention (negative = outflow) matches the app's, so no
+mapping quirks. The provider strips the URL's embedded credentials into an
+`Authorization` header (Node's fetch rejects inline credentials) and skips any
+rows with unparseable amounts.
+
+**Test the SimpleFIN path locally without an account:**
+
+```bash
+npm run simplefin:fixture   # serves real-format SimpleFIN JSON on :4000
+# in another shell, with these in .env:
+#   FINANCIAL_PROVIDER=simplefin
+#   SIMPLEFIN_ACCESS_URL=http://demo:demo@localhost:4000/simplefin
+npm run db:reset
+```
+
+### Plaid
+
+Implement `PlaidProvider.fetchSnapshot()` (steps in
+`src/lib/providers/plaidProvider.ts`), set `FINANCIAL_PROVIDER=plaid` plus
+credentials, and re-sync. Nothing else changes.
 
 ## How it works
 

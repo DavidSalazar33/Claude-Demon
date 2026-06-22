@@ -10,7 +10,9 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
-    "setup": "prisma generate && prisma db push && tsx prisma/seed.ts"
+    "setup": "prisma generate && prisma db push && tsx prisma/seed.ts",
+    "simplefin:claim": "node scripts/simplefin-claim.mjs",
+    "simplefin:fixture": "node scripts/simplefin-fixture.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
