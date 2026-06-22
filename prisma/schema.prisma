@@ -1,0 +1,80 @@
+// Money Tracker schema.
+// Dev uses SQLite. For self-hosted production, change `provider` to
+// "postgresql" and set DATABASE_URL to your Postgres connection string.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id           String   @id @default(cuid())
+  // Stable id from the upstream provider (Plaid account_id, or mock id).
+  externalId   String   @unique
+  name         String
+  officialName String?
+  institution  String
+  // checking | savings | credit | investment | loan
+  type         String
+  // last 4 digits / display mask
+  mask         String?
+  currency     String   @default("USD")
+  currentBalance   Float
+  availableBalance Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  transactions Transaction[]
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  externalId   String   @unique
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  date         DateTime
+  // Signed amount in account currency.
+  //   negative = money OUT (spending / debit)
+  //   positive = money IN  (income / credit)
+  amount       Float
+  name         String
+  merchant     String
+  category     String
+  pending      Boolean  @default(false)
+
+  // Set when this transaction belongs to a detected recurring series.
+  recurringId  String?
+  recurring    RecurringSeries? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime @default(now())
+
+  @@index([accountId])
+  @@index([date])
+  @@index([category])
+}
+
+model RecurringSeries {
+  id             String   @id @default(cuid())
+  merchant       String
+  category       String
+  // weekly | biweekly | monthly | quarterly | yearly | irregular
+  cadence        String
+  averageAmount  Float
+  occurrences    Int
+  firstDate      DateTime
+  lastDate       DateTime
+  nextExpected   DateTime?
+  // true for discretionary recurring services (Netflix, gym, ...) vs. rent/utilities.
+  isSubscription Boolean  @default(false)
+  active         Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+
+  transactions   Transaction[]
+
+  @@unique([merchant, cadence])
+}
